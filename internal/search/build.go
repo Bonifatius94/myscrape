@@ -15,6 +15,7 @@ const engineCooldown = 60 * time.Second
 // build_search_provider; more engines join here as they're ported.
 func Build(h httpx.Doer, s config.Settings) Provider {
 	engines := []Provider{
+		NewDDG(h),
 		NewMarginalia(h, s.MarginaliaAPIKey),
 	}
 	if s.TavilyAPIKey != "" {
