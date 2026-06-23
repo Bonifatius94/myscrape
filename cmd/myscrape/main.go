@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/Bonifatius94/myscrape-go/internal/config"
+	"github.com/Bonifatius94/myscrape-go/internal/fetch"
 	"github.com/Bonifatius94/myscrape-go/internal/httpx"
 	"github.com/Bonifatius94/myscrape-go/internal/mcpserver"
 	"github.com/Bonifatius94/myscrape-go/internal/search"
@@ -31,7 +32,8 @@ func main() {
 	// Round-robin over every available engine (key-gated ones join when their key
 	// is set), with the per-engine circuit breaker.
 	provider := search.Build(client, cfg)
-	server := mcpserver.New(mcpserver.Deps{Search: provider})
+	fetcher := fetch.NewFetcher(client)
+	server := mcpserver.New(mcpserver.Deps{Search: provider, Fetcher: fetcher})
 
 	switch cfg.MCPTransport {
 	case "http", "streamable-http":
