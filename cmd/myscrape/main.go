@@ -28,8 +28,9 @@ func main() {
 		RetryJitter: cfg.HTTPRetryJitter,
 	})
 
-	// Phase 1: a single no-key provider. Round-robin over all engines comes next.
-	provider := search.NewMarginalia(client, cfg.MarginaliaAPIKey)
+	// Round-robin over every available engine (key-gated ones join when their key
+	// is set), with the per-engine circuit breaker.
+	provider := search.Build(client, cfg)
 	server := mcpserver.New(mcpserver.Deps{Search: provider})
 
 	switch cfg.MCPTransport {
