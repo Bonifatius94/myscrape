@@ -1,0 +1,12 @@
+# Compiled binaries / build output
+/myscrape
+/myscrape.exe
+*.exe
+/dist/
+
+# Local secrets / env
+.env
+
+# Go test/coverage artifacts
+*.out
+coverage.txt
