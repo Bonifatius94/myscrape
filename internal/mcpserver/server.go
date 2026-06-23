@@ -14,6 +14,7 @@ import (
 
 	"github.com/Bonifatius94/myscrape-go/internal/fetch"
 	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape-go/internal/research"
 	"github.com/Bonifatius94/myscrape-go/internal/retry"
 	"github.com/Bonifatius94/myscrape-go/internal/search"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,8 +22,9 @@ import (
 
 // Deps are the constructed dependencies the tools need.
 type Deps struct {
-	Search  search.Provider
-	Fetcher *fetch.Fetcher
+	Search     search.Provider
+	Fetcher    *fetch.Fetcher
+	Researcher *research.WebResearcher
 }
 
 // New builds the MCP server with all tools registered.
@@ -30,7 +32,7 @@ func New(deps Deps) *mcp.Server {
 	s := mcp.NewServer(&mcp.Implementation{Name: "myscrape", Version: "0.1.0"}, nil)
 	registerWebSearch(s, deps.Search)
 	registerWebFetch(s, deps.Fetcher)
-	registerStub(s, "web_research", "Research a question end-to-end: search, fetch, then synthesize.")
+	registerWebResearch(s, deps.Researcher)
 	return s
 }
 
@@ -123,17 +125,45 @@ func mapFetchError(err error) (code, msg string, retryable bool) {
 	return "UNREACHABLE", err.Error(), false
 }
 
-// --- stub (web_research, until ported) ---
+// --- web_research ---
 
-type stubParams struct {
-	Arg string `json:"arg,omitempty" jsonschema:"placeholder"`
+type researchParams struct {
+	Question   string `json:"question" jsonschema:"the question to research"`
+	Effort     string `json:"effort,omitempty" jsonschema:"quick | standard | deep"`
+	ReturnMode string `json:"return_mode,omitempty" jsonschema:"answer | sources | both"`
+	Synthesis  string `json:"synthesis,omitempty" jsonschema:"simple (extractive, GPU-free); llm not yet ported"`
 }
 
-func registerStub(s *mcp.Server, name, desc string) {
-	mcp.AddTool(s, &mcp.Tool{Name: name, Description: desc + " (not implemented yet — Phase 1 WIP)"},
-		func(ctx context.Context, _ *mcp.CallToolRequest, _ stubParams) (*mcp.CallToolResult, any, error) {
-			return errorResult("NOT_IMPLEMENTED", name+" is not implemented yet in the Go port", false)
-		})
+func registerWebResearch(s *mcp.Server, r *research.WebResearcher) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "web_research",
+		Description: "Research a question end-to-end: search, fetch, then synthesize a cited answer (extractive, GPU-free).",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args researchParams) (*mcp.CallToolResult, any, error) {
+		effort := args.Effort
+		if effort == "" {
+			effort = "standard"
+		}
+		res, err := r.Research(ctx, args.Question, effort)
+		if err != nil {
+			return errorResult("SEARCH_UNAVAILABLE", err.Error(), true)
+		}
+		mode := args.ReturnMode
+		if mode == "" {
+			mode = "answer"
+		}
+		out := map[string]any{
+			"citations": res.Citations,
+			"coverage":  res.Coverage,
+			"answer":    nil,
+		}
+		if mode == "answer" || mode == "both" {
+			out["answer"] = res.Answer
+		}
+		if mode == "sources" || mode == "both" {
+			out["sources"] = res.Sources
+		}
+		return jsonResult(out)
+	})
 }
 
 // --- helpers ---
