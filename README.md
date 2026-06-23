@@ -1,5 +1,7 @@
 # myscrape (Go)
 
+[![CI](https://github.com/Bonifatius94/myscrape-go/actions/workflows/ci.yml/badge.svg)](https://github.com/Bonifatius94/myscrape-go/actions/workflows/ci.yml)
+
 A self-contained **web-research MCP server** for local agents — `web_search`,
 `web_fetch`, `web_research` — shipped as a compiled binary (no interpreter needed).
 
@@ -9,37 +11,50 @@ Python repo for the module map and the empirically-tuned operating points that
 carry over verbatim. The Python version is kept only as the differential-test
 oracle/fallback until this reaches parity, then retired.
 
-## Status — Phase 1 (scaffold)
+## Status — Phase 1 complete (functional parity, GPU-free core)
 
-Working spine: MCP server over **stdio** and **streamable-HTTP** (official
-`modelcontextprotocol/go-sdk`), with `web_search` wired through a real provider
-(Marginalia, no key needed). `web_fetch` / `web_research` are registered but
-stubbed. Default synthesis is GPU-free (`simple`) by design — no LLM, no browser.
+All three tools work over **stdio** and **streamable-HTTP** (official
+`modelcontextprotocol/go-sdk`):
+
+- **`web_search`** — round-robin over many engines (DDG + Marginalia always on;
+  Tavily/Exa/SerpApi/Serper/Mojeek/Google CSE join when their key is set), with a
+  per-engine circuit breaker.
+- **`web_fetch`** — static fetch + main-content extraction (go-trafilatura).
+- **`web_research`** — search → fetch → chunk → BM25 rank → synthesize. Default
+  synthesis is **extractive** (no LLM/GPU); set `synthesis=llm` (and an LLM
+  endpoint) to opt into model-written answers.
+
+The HTTP stack carries the Python reference's stability behavior verbatim: Tier-0
+cache, Tier-1 per-host pacing (8s/2s), Tier-3 retry/backoff with Retry-After.
 
 ```bash
 go build -o myscrape ./cmd/myscrape
+./myscrape                                                     # stdio
+MYSCRAPE_MCP_TRANSPORT=http MYSCRAPE_MCP_PORT=8000 ./myscrape  # -> http://127.0.0.1:8000/mcp
 
-# stdio (default)
-./myscrape
-
-# streamable-HTTP
-MYSCRAPE_MCP_TRANSPORT=http MYSCRAPE_MCP_PORT=8000 ./myscrape   # -> http://127.0.0.1:8000/mcp
+# Docker (static image, ~30 MB, GPU-free)
+docker compose up -d --build
 ```
+
+Provider keys and the optional LLM endpoint are configured via `MYSCRAPE_*` env
+vars — see [`.env.example`](.env.example).
 
 ## Layout
 
 ```
 cmd/myscrape        entrypoint (stdio | http)
 internal/config     MYSCRAPE_* settings
-internal/httpx      HTTP primitive (Doer seam; stability layers land here next)
-internal/search     Provider interface + engine adapters (Marginalia so far)
+internal/httpx      HTTP primitive: cache -> rate-limit -> retry (the Doer seam)
+internal/cache      Tier-0 TTL cache
+internal/ratelimit  Tier-1 per-host pacer
+internal/retry      Tier-3 backoff (Retryable, Retry-After)
+internal/search     Provider interface, engine adapters, round-robin/breaker
+internal/fetch      static fetch + go-trafilatura extraction
+internal/research   chunk, BM25 rank, extractive + LLM synthesis, pipeline
+internal/llm        OpenAI-compatible chat client (opt-in synthesis)
 internal/mcpserver  tool registration + handlers
-internal/fetch      (Phase 1: static fetch via go-trafilatura — TODO)
-internal/research   (Phase 1: chunk + BM25 + extractive synthesis — TODO)
 ```
 
-## Next (Phase 1 remaining)
+## Next (Phase 2+)
 
-httpx stability layers (cache / per-host rate-limit / retry+backoff) → remaining
-search providers + round-robin/circuit-breaker → static fetch (go-trafilatura) →
-chunk + BM25 + extractive synthesis → wire `web_fetch` / `web_research`.
+Dynamic (JS) fetch via `chromedp`; live stability bench; CI; release packaging.
