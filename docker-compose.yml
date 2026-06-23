@@ -1,0 +1,51 @@
+# myscrape-go server deployment.
+#
+#   docker compose up -d --build          # GPU-free (extractive web_research)
+#
+# To enable LLM-written answers on a GPU host, run Ollama with the gpu profile and
+# switch synthesis to llm:
+#   docker compose --profile gpu up -d --build
+#   docker compose exec ollama ollama pull qwen2.5:14b
+#   (set MYSCRAPE_RESEARCH_SYNTHESIS=llm + MYSCRAPE_LLM_BASE_URL below)
+services:
+  myscrape:
+    build: .
+    # Provider keys (MYSCRAPE_*_API_KEY) live in a local .env (gitignored).
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # GPU-free by default: extractive synthesis, no LLM contact.
+      MYSCRAPE_RESEARCH_SYNTHESIS: simple
+      MYSCRAPE_MCP_TRANSPORT: streamable-http
+      MYSCRAPE_MCP_HOST: 0.0.0.0
+      MYSCRAPE_MCP_PORT: "8000"
+      # --- Opt into LLM synthesis (GPU). Uncomment and pick a target:
+      #   host Ollama:  http://host.docker.internal:11434/v1
+      #   gpu profile:  http://ollama:11434/v1
+      # MYSCRAPE_RESEARCH_SYNTHESIS: llm
+      # MYSCRAPE_LLM_BASE_URL: http://ollama:11434/v1
+      # MYSCRAPE_LLM_MODEL: qwen2.5:14b
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # for an LLM running on the host
+
+  # Optional GPU-backed Ollama for LLM synthesis. Enable with: --profile gpu
+  ollama:
+    profiles: ["gpu"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+
+volumes:
+  ollama:

@@ -1,0 +1,6 @@
+.git
+.githooks
+*.exe
+/dist
+.env
+README.md
