@@ -16,7 +16,17 @@ import (
 
 func main() {
 	cfg := config.FromEnv()
-	client := httpx.New(cfg.RequestTimeout, cfg.UserAgent)
+	client := httpx.New(httpx.Config{
+		Timeout:     cfg.RequestTimeout,
+		UserAgent:   cfg.UserAgent,
+		CacheTTL:    cfg.CacheTTL,
+		MinInterval: cfg.RequestMinInterval,
+		Jitter:      cfg.RequestJitter,
+		Attempts:    cfg.HTTPAttempts,
+		BaseDelay:   cfg.HTTPBaseDelay,
+		MaxDelay:    cfg.HTTPMaxDelay,
+		RetryJitter: cfg.HTTPRetryJitter,
+	})
 
 	// Phase 1: a single no-key provider. Round-robin over all engines comes next.
 	provider := search.NewMarginalia(client, cfg.MarginaliaAPIKey)
