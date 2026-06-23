@@ -8,13 +8,16 @@ import (
 	"github.com/Bonifatius94/myscrape-go/internal/search"
 )
 
-// Searcher and Fetcher are the seams the pipeline depends on (so it's tested with
-// fakes, no network).
+// Searcher, Fetcher, and Synthesizer are the seams the pipeline depends on (so
+// it's tested with fakes, no network).
 type Searcher interface {
 	Search(ctx context.Context, query string, maxResults int) ([]search.Result, error)
 }
 type Fetcher interface {
 	Fetch(ctx context.Context, url string) (*fetch.Result, error)
+}
+type Synthesizer interface {
+	Synthesize(ctx context.Context, question string, passages []Passage) (SynthesisResult, error)
 }
 
 // effort -> (max sources fetched, max passages kept).
@@ -27,19 +30,27 @@ var effortLevels = map[string][2]int{
 const passageWords = 120
 
 // WebResearcher runs the cooked loop: search -> fetch -> chunk -> rank ->
-// synthesize. Phase 1 synthesis is extractive (GPU-free).
+// synthesize. Synthesis is "simple" (extractive, GPU-free) or "llm" (model-written)
+// when an LLM synthesizer is configured.
 type WebResearcher struct {
-	search Searcher
-	fetch  Fetcher
+	search           Searcher
+	fetch            Fetcher
+	llm              Synthesizer // optional; nil -> always extractive
+	defaultSynthesis string
 }
 
-// NewWebResearcher wires the pipeline.
-func NewWebResearcher(s Searcher, f Fetcher) *WebResearcher {
-	return &WebResearcher{search: s, fetch: f}
+// NewWebResearcher wires the pipeline. llm may be nil (extractive only);
+// defaultSynthesis is the mode used when a call doesn't specify one.
+func NewWebResearcher(s Searcher, f Fetcher, llm Synthesizer, defaultSynthesis string) *WebResearcher {
+	if defaultSynthesis == "" {
+		defaultSynthesis = "simple"
+	}
+	return &WebResearcher{search: s, fetch: f, llm: llm, defaultSynthesis: defaultSynthesis}
 }
 
-// Research executes the loop for the given effort and returns a cited result.
-func (w *WebResearcher) Research(ctx context.Context, question, effort string) (ResearchResult, error) {
+// Research executes the loop for the given effort/synthesis and returns a cited
+// result. synthesis "" falls back to the server default.
+func (w *WebResearcher) Research(ctx context.Context, question, effort, synthesis string) (ResearchResult, error) {
 	lvl, ok := effortLevels[effort]
 	if !ok {
 		lvl = effortLevels["standard"]
@@ -78,7 +89,20 @@ func (w *WebResearcher) Research(ctx context.Context, question, effort string) (
 	}
 
 	top := RankPassages(question, passages, maxPassages)
-	synth := ExtractiveSynthesize(question, top)
+
+	mode := synthesis
+	if mode == "" {
+		mode = w.defaultSynthesis
+	}
+	var synth SynthesisResult
+	if mode == "llm" && w.llm != nil {
+		synth, err = w.llm.Synthesize(ctx, question, top)
+		if err != nil {
+			return ResearchResult{}, err
+		}
+	} else {
+		synth = ExtractiveSynthesize(question, top)
+	}
 
 	citations := make([]Citation, len(synth.Citations))
 	for i, c := range synth.Citations {

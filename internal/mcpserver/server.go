@@ -143,8 +143,11 @@ func registerWebResearch(s *mcp.Server, r *research.WebResearcher) {
 		if effort == "" {
 			effort = "standard"
 		}
-		res, err := r.Research(ctx, args.Question, effort)
+		res, err := r.Research(ctx, args.Question, effort, args.Synthesis)
 		if err != nil {
+			if errors.Is(err, research.ErrLLM) {
+				return errorResult("LLM_ERROR", err.Error(), true)
+			}
 			return errorResult("SEARCH_UNAVAILABLE", err.Error(), true)
 		}
 		mode := args.ReturnMode

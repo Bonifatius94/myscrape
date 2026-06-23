@@ -25,6 +25,12 @@ type Settings struct {
 	MCPPort           int
 	ResearchSynthesis string // "simple" (GPU-free, default) | "llm"
 
+	// LLM (OpenAI-compatible) — only used when synthesis=llm. Swappable by base URL.
+	LLMBaseURL string
+	LLMModel   string
+	LLMAPIKey  string
+	LLMTimeout time.Duration
+
 	// Stability knobs (Python reference defaults). Per-host pacing is the proven
 	// 8s + 2s point; retry/backoff and cache TTL match the reference.
 	RequestMinInterval time.Duration
@@ -48,6 +54,10 @@ func FromEnv() Settings {
 		MCPHost:            env("MYSCRAPE_MCP_HOST", "127.0.0.1"),
 		MCPPort:            envInt("MYSCRAPE_MCP_PORT", 8000),
 		ResearchSynthesis:  env("MYSCRAPE_RESEARCH_SYNTHESIS", "simple"),
+		LLMBaseURL:         env("MYSCRAPE_LLM_BASE_URL", "http://localhost:11434/v1"),
+		LLMModel:           env("MYSCRAPE_LLM_MODEL", "qwen2.5:14b"),
+		LLMAPIKey:          env("MYSCRAPE_LLM_API_KEY", ""),
+		LLMTimeout:         envSeconds("MYSCRAPE_LLM_TIMEOUT", 120),
 		RequestMinInterval: envSeconds("MYSCRAPE_REQUEST_MIN_INTERVAL", 8),
 		RequestJitter:      envSeconds("MYSCRAPE_REQUEST_JITTER", 2),
 		CacheTTL:           envSeconds("MYSCRAPE_CACHE_TTL", 900),

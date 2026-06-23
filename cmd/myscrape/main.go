@@ -10,6 +10,7 @@ import (
 	"github.com/Bonifatius94/myscrape-go/internal/config"
 	"github.com/Bonifatius94/myscrape-go/internal/fetch"
 	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape-go/internal/llm"
 	"github.com/Bonifatius94/myscrape-go/internal/mcpserver"
 	"github.com/Bonifatius94/myscrape-go/internal/research"
 	"github.com/Bonifatius94/myscrape-go/internal/search"
@@ -34,7 +35,13 @@ func main() {
 	// is set), with the per-engine circuit breaker.
 	provider := search.Build(client, cfg)
 	fetcher := fetch.NewFetcher(client)
-	researcher := research.NewWebResearcher(provider, fetcher)
+
+	// LLM synthesizer is built unconditionally but only called when synthesis=llm;
+	// in the default "simple" mode it's never touched (no LLM/GPU contact).
+	chat := llm.New(cfg.LLMBaseURL, cfg.LLMModel, cfg.LLMAPIKey, cfg.LLMTimeout)
+	synthesizer := research.NewLLMSynthesizer(chat)
+	researcher := research.NewWebResearcher(provider, fetcher, synthesizer, cfg.ResearchSynthesis)
+
 	server := mcpserver.New(mcpserver.Deps{
 		Search:     provider,
 		Fetcher:    fetcher,
