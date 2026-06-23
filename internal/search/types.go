@@ -4,6 +4,7 @@ package search
 import (
 	"context"
 	"net/url"
+	"strings"
 )
 
 // Result is one search hit. Published is an ISO date string when available.
@@ -29,4 +30,16 @@ func siteOf(raw string) string {
 		return u.Host
 	}
 	return ""
+}
+
+// newResult builds a ranked Result with trimmed fields and a derived site.
+func newResult(rank int, title, rawURL, snippet, published string) Result {
+	return Result{
+		Rank:      rank,
+		Title:     strings.TrimSpace(title),
+		URL:       rawURL,
+		Site:      siteOf(rawURL),
+		Snippet:   strings.TrimSpace(snippet),
+		Published: published,
+	}
 }

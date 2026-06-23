@@ -18,6 +18,12 @@ type Settings struct {
 	SearchProvider    string // "roundrobin" or a single engine name
 	MarginaliaAPIKey  string // free "public" key works
 	TavilyAPIKey      string
+	ExaAPIKey         string
+	SerpAPIKey        string
+	SerperAPIKey      string
+	MojeekAPIKey      string
+	GoogleAPIKey      string
+	GoogleCSEID       string
 	RequestTimeout    time.Duration
 	UserAgent         string
 	MCPTransport      string // "stdio" | "http"
@@ -48,6 +54,12 @@ func FromEnv() Settings {
 		SearchProvider:     env("MYSCRAPE_SEARCH_PROVIDER", "roundrobin"),
 		MarginaliaAPIKey:   env("MYSCRAPE_MARGINALIA_API_KEY", "public"),
 		TavilyAPIKey:       env("MYSCRAPE_TAVILY_API_KEY", ""),
+		ExaAPIKey:          env("MYSCRAPE_EXA_API_KEY", ""),
+		SerpAPIKey:         env("MYSCRAPE_SERPAPI_API_KEY", ""),
+		SerperAPIKey:       env("MYSCRAPE_SERPER_API_KEY", ""),
+		MojeekAPIKey:       env("MYSCRAPE_MOJEEK_API_KEY", ""),
+		GoogleAPIKey:       env("MYSCRAPE_GOOGLE_API_KEY", ""),
+		GoogleCSEID:        env("MYSCRAPE_GOOGLE_CSE_ID", ""),
 		RequestTimeout:     envSeconds("MYSCRAPE_REQUEST_TIMEOUT", 20),
 		UserAgent:          env("MYSCRAPE_USER_AGENT", DefaultUserAgent),
 		MCPTransport:       env("MYSCRAPE_MCP_TRANSPORT", "stdio"),
