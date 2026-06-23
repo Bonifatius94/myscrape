@@ -1,0 +1,23 @@
+#!/bin/sh
+# Pre-commit quality gate for myscrape-go.
+# Enabled via:  git config core.hooksPath .githooks
+# Runs gofmt (check), go vet, and go test over the module. Any failure blocks
+# the commit. Keep tests offline — guard live/network tests behind an env flag
+# so this stays fast and deterministic.
+set -e
+
+echo "pre-commit: gofmt…"
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+	echo "✗ gofmt: needs formatting (run: gofmt -w .):"
+	echo "$unformatted"
+	exit 1
+fi
+
+echo "pre-commit: go vet…"
+go vet ./...
+
+echo "pre-commit: go test…"
+go test ./...
+
+echo "pre-commit: ok"
