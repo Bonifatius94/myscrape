@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	config.LoadDotEnv(".env") // local .env (real env still wins); no-op if absent
 	cfg := config.FromEnv()
 	client := httpx.New(httpx.Config{
 		Timeout:     cfg.RequestTimeout,
