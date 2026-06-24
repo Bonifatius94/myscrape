@@ -3,7 +3,7 @@
 # the default extractive web_research are all GPU-free. LLM synthesis (opt-in) talks
 # to an external Ollama (see docker-compose.yml).
 
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -17,6 +17,9 @@ COPY --from=build /out/myscrape /myscrape
 ENV MYSCRAPE_MCP_TRANSPORT=streamable-http \
     MYSCRAPE_MCP_HOST=0.0.0.0 \
     MYSCRAPE_MCP_PORT=8000 \
-    MYSCRAPE_RESEARCH_SYNTHESIS=simple
+    MYSCRAPE_RESEARCH_SYNTHESIS=simple \
+    MYSCRAPE_DYNAMIC_ENABLED=false
+# Dynamic (JS) fetch is off here — this image has no Chrome. Use a Chrome-equipped
+# image / sidecar and set MYSCRAPE_DYNAMIC_ENABLED=true to enable it.
 EXPOSE 8000
 ENTRYPOINT ["/myscrape"]

@@ -6,6 +6,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,6 +33,12 @@ type Settings struct {
 	ResearchSynthesis string // "simple" (GPU-free, default) | "llm"
 	// Server-mode cap on concurrent web_research (bounds GPU contention in llm mode).
 	MaxConcurrentResearch int
+
+	// Dynamic (headless Chrome) fetch for JS pages. Needs Chrome on PATH; when a
+	// static fetch is thinner than DynamicThreshold words it escalates to a render.
+	DynamicEnabled   bool
+	DynamicTimeout   time.Duration
+	DynamicThreshold int
 
 	// LLM (OpenAI-compatible) — only used when synthesis=llm. Swappable by base URL.
 	LLMBaseURL string
@@ -69,6 +76,9 @@ func FromEnv() Settings {
 		MCPPort:               envInt("MYSCRAPE_MCP_PORT", 8000),
 		ResearchSynthesis:     env("MYSCRAPE_RESEARCH_SYNTHESIS", "simple"),
 		MaxConcurrentResearch: envInt("MYSCRAPE_MAX_CONCURRENT_RESEARCH", 2),
+		DynamicEnabled:        envBool("MYSCRAPE_DYNAMIC_ENABLED", true),
+		DynamicTimeout:        envSeconds("MYSCRAPE_DYNAMIC_TIMEOUT", 20),
+		DynamicThreshold:      envInt("MYSCRAPE_DYNAMIC_THRESHOLD", 50),
 		LLMBaseURL:            env("MYSCRAPE_LLM_BASE_URL", "http://localhost:11434/v1"),
 		LLMModel:              env("MYSCRAPE_LLM_MODEL", "qwen2.5:14b"),
 		LLMAPIKey:             env("MYSCRAPE_LLM_API_KEY", ""),
@@ -94,6 +104,18 @@ func envInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
+		}
+	}
+	return def
+}
+
+func envBool(key string, def bool) bool {
+	if v := os.Getenv(key); v != "" {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
 		}
 	}
 	return def

@@ -39,6 +39,10 @@ func main() {
 		log.Fatal(err)
 	}
 	fetcher := fetch.NewFetcher(client)
+	if cfg.DynamicEnabled {
+		renderer := fetch.NewChromeRenderer(cfg.DynamicTimeout)
+		fetcher = fetch.NewFetcherWithRenderer(client, renderer, cfg.DynamicThreshold)
+	}
 
 	// LLM synthesizer is built unconditionally but only called when synthesis=llm;
 	// in the default "simple" mode it's never touched (no LLM/GPU contact).
