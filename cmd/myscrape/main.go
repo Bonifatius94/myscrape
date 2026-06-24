@@ -34,7 +34,10 @@ func main() {
 
 	// Round-robin over every available engine (key-gated ones join when their key
 	// is set), with the per-engine circuit breaker.
-	provider := search.Build(client, cfg)
+	provider, err := search.Build(client, cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fetcher := fetch.NewFetcher(client)
 
 	// LLM synthesizer is built unconditionally but only called when synthesis=llm;

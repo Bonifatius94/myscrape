@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Bonifatius94/myscrape-go/internal/config"
@@ -10,10 +11,36 @@ import (
 // engineCooldown is how long a rate-limited engine is skipped by the breaker.
 const engineCooldown = 60 * time.Second
 
-// Build composes every available engine into a round-robin: the always-on no-key
-// engines plus any key-gated engine whose credential is set. Mirrors the Python
-// build_search_provider; more engines join here as they're ported.
-func Build(h httpx.Doer, s config.Settings) Provider {
+// Build returns the configured search provider. "roundrobin" (or empty) composes
+// every available engine; a named engine returns just that one. Unknown -> error.
+func Build(h httpx.Doer, s config.Settings) (Provider, error) {
+	switch s.SearchProvider {
+	case "", "roundrobin":
+		return buildRoundRobin(h, s), nil
+	case "ddg":
+		return NewDDG(h), nil
+	case "marginalia":
+		return NewMarginalia(h, s.MarginaliaAPIKey), nil
+	case "tavily":
+		return NewTavily(h, s.TavilyAPIKey), nil
+	case "exa":
+		return NewExa(h, s.ExaAPIKey), nil
+	case "serpapi":
+		return NewSerpAPI(h, s.SerpAPIKey), nil
+	case "serper":
+		return NewSerper(h, s.SerperAPIKey), nil
+	case "mojeek":
+		return NewMojeek(h, s.MojeekAPIKey), nil
+	case "google_cse":
+		return NewGoogleCSE(h, s.GoogleAPIKey, s.GoogleCSEID), nil
+	default:
+		return nil, fmt.Errorf("unknown search provider: %q", s.SearchProvider)
+	}
+}
+
+// buildRoundRobin composes the always-on no-key engines plus any key-gated engine
+// whose credential is set.
+func buildRoundRobin(h httpx.Doer, s config.Settings) Provider {
 	engines := []Provider{
 		NewDDG(h),
 		NewMarginalia(h, s.MarginaliaAPIKey),
@@ -36,6 +63,5 @@ func Build(h httpx.Doer, s config.Settings) Provider {
 	if s.GoogleAPIKey != "" && s.GoogleCSEID != "" {
 		engines = append(engines, NewGoogleCSE(h, s.GoogleAPIKey, s.GoogleCSEID))
 	}
-	// TODO(port): DDG HTML scraper.
 	return NewRoundRobin(engines, nil, engineCooldown)
 }
