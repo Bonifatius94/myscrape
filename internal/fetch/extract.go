@@ -32,11 +32,16 @@ func Extract(rawURL string, html []byte) (*Result, error) {
 	if text == "" {
 		return nil, ErrEmpty
 	}
+	// Prefer markdown (preserves headings/lists/links); fall back to plain text.
+	content := nodeToMarkdown(res.ContentNode)
+	if content == "" {
+		content = text
+	}
 	return &Result{
 		URL:        rawURL,
 		Title:      strings.TrimSpace(res.Metadata.Title),
-		Content:    text,
-		WordCount:  len(strings.Fields(text)),
+		Content:    content,
+		WordCount:  len(strings.Fields(content)),
 		FetchedVia: "static",
 	}, nil
 }
