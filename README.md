@@ -55,6 +55,11 @@ internal/llm        OpenAI-compatible chat client (opt-in synthesis)
 internal/mcpserver  tool registration + handlers
 ```
 
-## Next (Phase 2+)
+## Beyond the core
 
-Dynamic (JS) fetch via `chromedp`; live stability bench; CI; release packaging.
+- **Dynamic (JS) fetch** — `internal/fetch` escalates thin/JS pages to a headless
+  Chrome render via `chromedp` (`MYSCRAPE_DYNAMIC_ENABLED`, needs Chrome on PATH).
+- **`cmd/bench`** — live stability gate (`go run ./cmd/bench`); passes when
+  `ratelimit_rate == 0` at the 8s/2s operating point.
+- **CI/release** — GitHub Actions runs the offline gate + Docker build; tagging
+  `v*` builds cross-OS binaries and publishes a multi-arch image to GHCR.
