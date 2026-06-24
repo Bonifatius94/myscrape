@@ -39,6 +39,15 @@ docker compose up -d --build
 Provider keys and the optional LLM endpoint are configured via `MYSCRAPE_*` env
 vars — see [`.env.example`](.env.example).
 
+## Docs
+
+- [`specs/SPEC.md`](specs/SPEC.md) — tool contracts + error taxonomy
+- [`specs/PROVIDERS.md`](specs/PROVIDERS.md) — search engines + how to add one
+- [`specs/EXPERIMENTS.md`](specs/EXPERIMENTS.md) — the empirical operating points
+- [`specs/DEVLOG.md`](specs/DEVLOG.md) — Go port decisions (G-001…)
+- [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — consuming myscrape from another product
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — workflow, hooks, conventions
+
 ## Layout
 
 ```
