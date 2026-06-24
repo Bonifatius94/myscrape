@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Bonifatius94/myscrape-go/internal/fetch"
-	"github.com/Bonifatius94/myscrape-go/internal/search"
+	"github.com/Bonifatius94/myscrape/internal/fetch"
+	"github.com/Bonifatius94/myscrape/internal/search"
 )
 
 type fakeSearcher struct {

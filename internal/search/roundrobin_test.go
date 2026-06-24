@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
 )
 
 type fakeProvider struct {

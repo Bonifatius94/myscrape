@@ -21,9 +21,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Bonifatius94/myscrape-go/internal/cache"
-	"github.com/Bonifatius94/myscrape-go/internal/ratelimit"
-	"github.com/Bonifatius94/myscrape-go/internal/retry"
+	"github.com/Bonifatius94/myscrape/internal/cache"
+	"github.com/Bonifatius94/myscrape/internal/ratelimit"
+	"github.com/Bonifatius94/myscrape/internal/retry"
 )
 
 // retryableStatuses are transient — retried with backoff (Python reference parity).

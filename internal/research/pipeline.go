@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Bonifatius94/myscrape-go/internal/fetch"
-	"github.com/Bonifatius94/myscrape-go/internal/search"
+	"github.com/Bonifatius94/myscrape/internal/fetch"
+	"github.com/Bonifatius94/myscrape/internal/search"
 )
 
 // Searcher, Fetcher, and Synthesizer are the seams the pipeline depends on (so

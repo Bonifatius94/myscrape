@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
 )
 
 const tavilyEndpoint = "https://api.tavily.com/search"

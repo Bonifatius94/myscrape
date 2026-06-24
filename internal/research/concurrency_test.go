@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bonifatius94/myscrape-go/internal/search"
+	"github.com/Bonifatius94/myscrape/internal/search"
 )
 
 // blockingSearcher signals each entry and blocks until release is closed, so a

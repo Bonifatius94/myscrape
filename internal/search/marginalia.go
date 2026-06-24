@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
 )
 
 const marginaliaEndpoint = "https://api2.marginalia-search.com/search"

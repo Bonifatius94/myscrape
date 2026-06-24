@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Bonifatius94/myscrape-go/internal/llm"
+	"github.com/Bonifatius94/myscrape/internal/llm"
 )
 
 type fakeChat struct {

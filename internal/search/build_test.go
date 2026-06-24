@@ -3,7 +3,7 @@ package search
 import (
 	"testing"
 
-	"github.com/Bonifatius94/myscrape-go/internal/config"
+	"github.com/Bonifatius94/myscrape/internal/config"
 )
 
 func TestBuildRoundRobinDefault(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
 )
 
 // ErrEmpty means no main content could be extracted from the page.

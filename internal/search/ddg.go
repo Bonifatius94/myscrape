@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
 )
 
 // DDG scrapes DuckDuckGo's HTML endpoint — the one scraper we keep (no key). It's

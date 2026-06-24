@@ -1,6 +1,6 @@
 # myscrape (Go)
 
-[![CI](https://github.com/Bonifatius94/myscrape-go/actions/workflows/ci.yml/badge.svg)](https://github.com/Bonifatius94/myscrape-go/actions/workflows/ci.yml)
+[![CI](https://github.com/Bonifatius94/myscrape/actions/workflows/ci.yml/badge.svg)](https://github.com/Bonifatius94/myscrape/actions/workflows/ci.yml)
 
 A self-contained **web-research MCP server** for local agents — `web_search`,
 `web_fetch`, `web_research` — shipped as a compiled binary (no interpreter needed).

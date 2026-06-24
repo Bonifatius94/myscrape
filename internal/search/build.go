@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Bonifatius94/myscrape-go/internal/config"
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/config"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
 )
 
 // engineCooldown is how long a rate-limited engine is skipped by the breaker.

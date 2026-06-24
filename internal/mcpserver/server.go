@@ -14,11 +14,11 @@ import (
 	"net"
 	"strings"
 
-	"github.com/Bonifatius94/myscrape-go/internal/fetch"
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
-	"github.com/Bonifatius94/myscrape-go/internal/research"
-	"github.com/Bonifatius94/myscrape-go/internal/retry"
-	"github.com/Bonifatius94/myscrape-go/internal/search"
+	"github.com/Bonifatius94/myscrape/internal/fetch"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/research"
+	"github.com/Bonifatius94/myscrape/internal/retry"
+	"github.com/Bonifatius94/myscrape/internal/search"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

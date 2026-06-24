@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
-	"github.com/Bonifatius94/myscrape-go/internal/retry"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/retry"
 )
 
 // RoundRobin composes independent engines: it rotates the starting engine per

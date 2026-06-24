@@ -7,13 +7,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Bonifatius94/myscrape-go/internal/config"
-	"github.com/Bonifatius94/myscrape-go/internal/fetch"
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
-	"github.com/Bonifatius94/myscrape-go/internal/llm"
-	"github.com/Bonifatius94/myscrape-go/internal/mcpserver"
-	"github.com/Bonifatius94/myscrape-go/internal/research"
-	"github.com/Bonifatius94/myscrape-go/internal/search"
+	"github.com/Bonifatius94/myscrape/internal/config"
+	"github.com/Bonifatius94/myscrape/internal/fetch"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/llm"
+	"github.com/Bonifatius94/myscrape/internal/mcpserver"
+	"github.com/Bonifatius94/myscrape/internal/research"
+	"github.com/Bonifatius94/myscrape/internal/search"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

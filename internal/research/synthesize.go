@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Bonifatius94/myscrape-go/internal/llm"
+	"github.com/Bonifatius94/myscrape/internal/llm"
 )
 
 // ErrLLM wraps a failure from the LLM synthesis call (maps to LLM_ERROR).

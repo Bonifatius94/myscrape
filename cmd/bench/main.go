@@ -11,10 +11,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/Bonifatius94/myscrape-go/internal/config"
-	"github.com/Bonifatius94/myscrape-go/internal/httpx"
-	"github.com/Bonifatius94/myscrape-go/internal/retry"
-	"github.com/Bonifatius94/myscrape-go/internal/search"
+	"github.com/Bonifatius94/myscrape/internal/config"
+	"github.com/Bonifatius94/myscrape/internal/httpx"
+	"github.com/Bonifatius94/myscrape/internal/retry"
+	"github.com/Bonifatius94/myscrape/internal/search"
 )
 
 var queries = []string{
