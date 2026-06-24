@@ -1,8 +1,9 @@
 // Package mcpserver registers the three myscrape tools on an MCP server.
 //
-// Tool logic returns JSON (as text content), mirroring the Python reference's
-// SPEC-shaped dicts so existing MCP clients and .mcp.json keep working. Phase 1
-// wires web_search and web_fetch; web_research is registered but stubbed.
+// Tool logic lives in do* functions that take dependencies and return a JSON-able
+// value (a result struct or a SPEC-shaped error map), mirroring the Python
+// reference's do_* functions — so the logic is testable without any transport. The
+// registered tools are thin wrappers that marshal the value to text content.
 package mcpserver
 
 import (
@@ -10,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/Bonifatius94/myscrape-go/internal/fetch"
@@ -19,6 +21,17 @@ import (
 	"github.com/Bonifatius94/myscrape-go/internal/search"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// The seams the handlers depend on (so they're testable with fakes).
+type searcher interface {
+	Search(ctx context.Context, query string, maxResults int) ([]search.Result, error)
+}
+type fetcher interface {
+	Fetch(ctx context.Context, url string) (*fetch.Result, error)
+}
+type researcher interface {
+	Research(ctx context.Context, question, effort, synthesis string) (research.ResearchResult, error)
+}
 
 // Deps are the constructed dependencies the tools need.
 type Deps struct {
@@ -30,9 +43,26 @@ type Deps struct {
 // New builds the MCP server with all tools registered.
 func New(deps Deps) *mcp.Server {
 	s := mcp.NewServer(&mcp.Implementation{Name: "myscrape", Version: "0.1.0"}, nil)
-	registerWebSearch(s, deps.Search)
-	registerWebFetch(s, deps.Fetcher)
-	registerWebResearch(s, deps.Researcher)
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "web_search", Description: "Raw web search. Returns a ranked list of results (no fetching).",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a searchParams) (*mcp.CallToolResult, any, error) {
+		return jsonResult(doWebSearch(ctx, deps.Search, a.Query, a.MaxResults))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "web_fetch", Description: "Fetch one URL and return its main content as clean text.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a fetchParams) (*mcp.CallToolResult, any, error) {
+		return jsonResult(doWebFetch(ctx, deps.Fetcher, a.URL, a.MaxTokens))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "web_research",
+		Description: "Research a question end-to-end: search, fetch, then synthesize a cited answer (extractive by default; synthesis=llm for model-written).",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a researchParams) (*mcp.CallToolResult, any, error) {
+		return jsonResult(doWebResearch(ctx, deps.Researcher, a))
+	})
+
 	return s
 }
 
@@ -49,21 +79,18 @@ type searchOut struct {
 	Count   int             `json:"count"`
 }
 
-func registerWebSearch(s *mcp.Server, provider search.Provider) {
-	mcp.AddTool(s, &mcp.Tool{
-		Name:        "web_search",
-		Description: "Raw web search. Returns a ranked list of results (no fetching).",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, args searchParams) (*mcp.CallToolResult, any, error) {
-		max := args.MaxResults
-		if max <= 0 {
-			max = 10
+func doWebSearch(ctx context.Context, provider searcher, query string, maxResults int) any {
+	if maxResults <= 0 {
+		maxResults = 10
+	}
+	results, err := provider.Search(ctx, query, maxResults)
+	if err != nil {
+		if isRateLimited(err) {
+			return errMap("RATELIMITED", err.Error(), true)
 		}
-		results, err := provider.Search(ctx, args.Query, max)
-		if err != nil {
-			return errorResult("SEARCH_UNAVAILABLE", err.Error(), true)
-		}
-		return jsonResult(searchOut{Query: args.Query, Results: results, Count: len(results)})
-	})
+		return errMap("SEARCH_UNAVAILABLE", err.Error(), true)
+	}
+	return searchOut{Query: query, Results: results, Count: len(results)}
 }
 
 // --- web_fetch ---
@@ -82,35 +109,74 @@ type fetchOut struct {
 	Truncated  bool   `json:"truncated"`
 }
 
-func registerWebFetch(s *mcp.Server, f *fetch.Fetcher) {
-	mcp.AddTool(s, &mcp.Tool{
-		Name:        "web_fetch",
-		Description: "Fetch one URL and return its main content as clean text.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, args fetchParams) (*mcp.CallToolResult, any, error) {
-		res, err := f.Fetch(ctx, args.URL)
-		if err != nil {
-			code, msg, retryable := mapFetchError(err)
-			return errorResult(code, msg, retryable)
+func doWebFetch(ctx context.Context, f fetcher, rawURL string, maxTokens int) any {
+	res, err := f.Fetch(ctx, rawURL)
+	if err != nil {
+		code, msg, retryable := mapFetchError(err)
+		return errMap(code, msg, retryable)
+	}
+	content, truncated := res.Content, false
+	if maxTokens > 0 {
+		if words := strings.Fields(content); len(words) > maxTokens {
+			content = strings.Join(words[:maxTokens], " ")
+			truncated = true
 		}
-		content, truncated := res.Content, false
-		if args.MaxTokens > 0 {
-			if words := strings.Fields(content); len(words) > args.MaxTokens {
-				content = strings.Join(words[:args.MaxTokens], " ")
-				truncated = true
-			}
-		}
-		return jsonResult(fetchOut{
-			URL: res.URL, Title: res.Title, Content: content,
-			WordCount: res.WordCount, FetchedVia: res.FetchedVia, Truncated: truncated,
-		})
-	})
+	}
+	return fetchOut{
+		URL: res.URL, Title: res.Title, Content: content,
+		WordCount: res.WordCount, FetchedVia: res.FetchedVia, Truncated: truncated,
+	}
 }
+
+// --- web_research ---
+
+type researchParams struct {
+	Question   string `json:"question" jsonschema:"the question to research"`
+	Effort     string `json:"effort,omitempty" jsonschema:"quick | standard | deep"`
+	ReturnMode string `json:"return_mode,omitempty" jsonschema:"answer | sources | both"`
+	Synthesis  string `json:"synthesis,omitempty" jsonschema:"simple (extractive, GPU-free) | llm"`
+}
+
+func doWebResearch(ctx context.Context, r researcher, a researchParams) any {
+	effort := a.Effort
+	if effort == "" {
+		effort = "standard"
+	}
+	res, err := r.Research(ctx, a.Question, effort, a.Synthesis)
+	if err != nil {
+		if errors.Is(err, research.ErrLLM) {
+			return errMap("LLM_ERROR", err.Error(), true)
+		}
+		if isRateLimited(err) {
+			return errMap("RATELIMITED", err.Error(), true)
+		}
+		return errMap("SEARCH_UNAVAILABLE", err.Error(), true)
+	}
+	mode := a.ReturnMode
+	if mode == "" {
+		mode = "answer"
+	}
+	out := map[string]any{"citations": res.Citations, "coverage": res.Coverage, "answer": nil}
+	if mode == "answer" || mode == "both" {
+		out["answer"] = res.Answer
+	}
+	if mode == "sources" || mode == "both" {
+		out["sources"] = res.Sources
+	}
+	return out
+}
+
+// --- error mapping + helpers ---
 
 // mapFetchError maps fetch/HTTP errors to the SPEC error taxonomy.
 func mapFetchError(err error) (code, msg string, retryable bool) {
 	var re *retry.Retryable
 	if errors.As(err, &re) {
 		return "RATELIMITED", re.Error(), true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "TIMEOUT", netErr.Error(), true
 	}
 	var he *httpx.HTTPError
 	if errors.As(err, &he) {
@@ -125,54 +191,15 @@ func mapFetchError(err error) (code, msg string, retryable bool) {
 	return "UNREACHABLE", err.Error(), false
 }
 
-// --- web_research ---
-
-type researchParams struct {
-	Question   string `json:"question" jsonschema:"the question to research"`
-	Effort     string `json:"effort,omitempty" jsonschema:"quick | standard | deep"`
-	ReturnMode string `json:"return_mode,omitempty" jsonschema:"answer | sources | both"`
-	Synthesis  string `json:"synthesis,omitempty" jsonschema:"simple (extractive, GPU-free); llm not yet ported"`
+func isRateLimited(err error) bool {
+	var re *retry.Retryable
+	if errors.As(err, &re) {
+		return true
+	}
+	var he *httpx.HTTPError
+	return errors.As(err, &he) && (he.Status == 429 || he.Status == 503 || he.Status == 202)
 }
 
-func registerWebResearch(s *mcp.Server, r *research.WebResearcher) {
-	mcp.AddTool(s, &mcp.Tool{
-		Name:        "web_research",
-		Description: "Research a question end-to-end: search, fetch, then synthesize a cited answer (extractive, GPU-free).",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, args researchParams) (*mcp.CallToolResult, any, error) {
-		effort := args.Effort
-		if effort == "" {
-			effort = "standard"
-		}
-		res, err := r.Research(ctx, args.Question, effort, args.Synthesis)
-		if err != nil {
-			if errors.Is(err, research.ErrLLM) {
-				return errorResult("LLM_ERROR", err.Error(), true)
-			}
-			return errorResult("SEARCH_UNAVAILABLE", err.Error(), true)
-		}
-		mode := args.ReturnMode
-		if mode == "" {
-			mode = "answer"
-		}
-		out := map[string]any{
-			"citations": res.Citations,
-			"coverage":  res.Coverage,
-			"answer":    nil,
-		}
-		if mode == "answer" || mode == "both" {
-			out["answer"] = res.Answer
-		}
-		if mode == "sources" || mode == "both" {
-			out["sources"] = res.Sources
-		}
-		return jsonResult(out)
-	})
-}
-
-// --- helpers ---
-
-// jsonResult serializes v to JSON and returns it as text content (matching the
-// Python server's response shape).
 func jsonResult(v any) (*mcp.CallToolResult, any, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -181,9 +208,8 @@ func jsonResult(v any) (*mcp.CallToolResult, any, error) {
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: string(b)}}}, nil, nil
 }
 
-// errorResult returns a SPEC-shaped structured error as the tool result.
-func errorResult(code, message string, retryable bool) (*mcp.CallToolResult, any, error) {
-	return jsonResult(map[string]any{
+func errMap(code, message string, retryable bool) map[string]any {
+	return map[string]any{
 		"error": map[string]any{"code": code, "message": message, "retryable": retryable},
-	})
+	}
 }
