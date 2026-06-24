@@ -42,7 +42,7 @@ func TestResearchFullLoop(t *testing.T) {
 		"http://a": "python asyncio runs tasks concurrently without threads",
 		"http://b": "task groups supervise child tasks and propagate errors",
 	}}
-	wr := NewWebResearcher(s, f, nil, "simple")
+	wr := NewWebResearcher(s, f, nil, "simple", 0)
 
 	res, err := wr.Research(context.Background(), "python asyncio", "standard", "")
 	if err != nil {
@@ -72,7 +72,7 @@ func TestEffortControlsSourceCount(t *testing.T) {
 		results[i] = sr(i+1, "t", "http://x")
 	}
 	s := &fakeSearcher{results: results}
-	wr := NewWebResearcher(s, &fakeFetcher{byURL: map[string]string{}}, nil, "simple")
+	wr := NewWebResearcher(s, &fakeFetcher{byURL: map[string]string{}}, nil, "simple", 0)
 
 	_, _ = wr.Research(context.Background(), "q", "quick", "")
 	if s.maxSeen != 3 { // quick -> 3 sources
@@ -95,7 +95,7 @@ func TestResearchUsesLLMSynthesizerWhenRequested(t *testing.T) {
 	s := &fakeSearcher{results: []search.Result{sr(1, "A", "http://a")}}
 	f := &fakeFetcher{byURL: map[string]string{"http://a": "content about async tasks"}}
 	synth := &fakeSynth{}
-	wr := NewWebResearcher(s, f, synth, "simple")
+	wr := NewWebResearcher(s, f, synth, "simple", 0)
 
 	res, err := wr.Research(context.Background(), "q", "standard", "llm")
 	if err != nil {
@@ -112,7 +112,7 @@ func TestResearchUsesLLMSynthesizerWhenRequested(t *testing.T) {
 func TestUnfetchableSourcesSkipped(t *testing.T) {
 	s := &fakeSearcher{results: []search.Result{sr(1, "A", "http://a"), sr(2, "B", "http://b")}}
 	f := &fakeFetcher{byURL: map[string]string{"http://a": "real content about async tasks"}} // b missing
-	wr := NewWebResearcher(s, f, nil, "simple")
+	wr := NewWebResearcher(s, f, nil, "simple", 0)
 
 	res, _ := wr.Research(context.Background(), "q", "standard", "")
 	if len(res.Sources) != 1 || res.Sources[0].URL != "http://a" {

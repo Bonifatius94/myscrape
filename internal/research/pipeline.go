@@ -37,20 +37,31 @@ type WebResearcher struct {
 	fetch            Fetcher
 	llm              Synthesizer // optional; nil -> always extractive
 	defaultSynthesis string
+	sem              chan struct{} // optional concurrency cap (nil -> unbounded)
 }
 
 // NewWebResearcher wires the pipeline. llm may be nil (extractive only);
-// defaultSynthesis is the mode used when a call doesn't specify one.
-func NewWebResearcher(s Searcher, f Fetcher, llm Synthesizer, defaultSynthesis string) *WebResearcher {
+// defaultSynthesis is the mode used when a call doesn't specify one; maxConcurrent
+// > 0 caps simultaneous Research calls (0 -> unbounded, for single-user stdio).
+func NewWebResearcher(s Searcher, f Fetcher, llm Synthesizer, defaultSynthesis string, maxConcurrent int) *WebResearcher {
 	if defaultSynthesis == "" {
 		defaultSynthesis = "simple"
 	}
-	return &WebResearcher{search: s, fetch: f, llm: llm, defaultSynthesis: defaultSynthesis}
+	var sem chan struct{}
+	if maxConcurrent > 0 {
+		sem = make(chan struct{}, maxConcurrent)
+	}
+	return &WebResearcher{search: s, fetch: f, llm: llm, defaultSynthesis: defaultSynthesis, sem: sem}
 }
 
 // Research executes the loop for the given effort/synthesis and returns a cited
 // result. synthesis "" falls back to the server default.
 func (w *WebResearcher) Research(ctx context.Context, question, effort, synthesis string) (ResearchResult, error) {
+	if w.sem != nil { // server-mode cap: bound concurrent research (GPU contention)
+		w.sem <- struct{}{}
+		defer func() { <-w.sem }()
+	}
+
 	lvl, ok := effortLevels[effort]
 	if !ok {
 		lvl = effortLevels["standard"]

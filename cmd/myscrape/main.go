@@ -44,7 +44,13 @@ func main() {
 	// in the default "simple" mode it's never touched (no LLM/GPU contact).
 	chat := llm.New(cfg.LLMBaseURL, cfg.LLMModel, cfg.LLMAPIKey, cfg.LLMTimeout)
 	synthesizer := research.NewLLMSynthesizer(chat)
-	researcher := research.NewWebResearcher(provider, fetcher, synthesizer, cfg.ResearchSynthesis)
+
+	// Cap concurrent research only in server (HTTP) mode; stdio is single-user.
+	maxConcurrent := 0
+	if cfg.MCPTransport != "stdio" {
+		maxConcurrent = cfg.MaxConcurrentResearch
+	}
+	researcher := research.NewWebResearcher(provider, fetcher, synthesizer, cfg.ResearchSynthesis, maxConcurrent)
 
 	server := mcpserver.New(mcpserver.Deps{
 		Search:     provider,
